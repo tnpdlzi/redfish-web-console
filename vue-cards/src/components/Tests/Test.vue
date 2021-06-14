@@ -439,57 +439,8 @@ export default {
     }
   },
   methods: {
-    
-    // scrollTo: function scrollTo(element, scrollPixels, duration) {
-    //   const scrollPos = element.scrollLeft;
-    //   // Condition to check if scrolling is required
-    //   if ( !( (scrollPos === 0 || scrollPixels > 0) && (element.clientWidth + scrollPos === element.scrollWidth || scrollPixels < 0))) 
-    //   {
-    //     // Get the start timestamp
-    //     const startTime =
-    //       "now" in window.performance
-    //         ? performance.now()
-    //         : new Date().getTime();
-        
-    //     let scroll = function(timestamp) {
-    //       //Calculate the timeelapsed
-    //       const timeElapsed = timestamp - startTime;
-    //       //Calculate progress 
-    //       const progress = Math.min(timeElapsed / duration, 1);
-    //       //Set the scrolleft
-    //       element.scrollLeft = scrollPos + scrollPixels * progress;
-    //       //Check if elapsed time is less then duration then call the requestAnimation, otherwise exit
-    //       if (timeElapsed < duration) {
-    //         //Request for animation
-    //         window.requestAnimationFrame(scroll);
-    //       } else {
-    //         return;
-    //       }
-    //     }
-    //     //Call requestAnimationFrame on scroll function first time
-    //     window.requestAnimationFrame(scroll);
-    //   }
-    // },
-    // swipeLeft: function swipeLeft() {
-    //   const content = this.$refs.content;
-    //   this.scrollTo(content, -350, 500);
-    // },
-    // swipeRight: function swipeRight() {
-    //   const content = this.$refs.content;
-    //   this.scrollTo(content, 350, 500);
-    // }
   },
 
-  // created () {
-  //     axios.get('http://localhost:8000/api/CardList')
-  //     .then(response => {
-  //       console.log(response);
-  //       this.data = response.data;
-  //     })
-  //     .catch(err => {
-  //       console.log(err);
-  //     });
-  //   }
 }
 
 

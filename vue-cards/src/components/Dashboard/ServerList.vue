@@ -27,9 +27,9 @@
             <th>Status</th>
             <th>IndicatorLED</th>
             <th>PowerState</th>
-            <th>Boot</th>
+            <!-- <th>Boot</th>
             <th>TrustedModules</th>
-            <th>Oem</th>
+            <th>Oem</th> -->
             <th>BiosVersion</th>
             <th>ProcessorSummary</th>
             <th>MemorySummary</th>
@@ -99,7 +99,7 @@ export default {
     $ ( '#table' ).ready(function() {
     $.ajax({
         type: 'GET',
-        url: 'http://localhost:8000/api/dashboard',
+        url: '/api/dashboard',
         mimeType: 'json',
         success: function(data) {
             $.each(data, function(i, data) {
@@ -120,9 +120,9 @@ export default {
                 body    += "<td>" + JSON.stringify(data.Status.State) + "</td>";
                 body    += "<td>" + data.IndicatorLED + "</td>";
                 body    += "<td>" + data.PowerState + "</td>";
-                body    += "<td>" + JSON.stringify(data.Boot) + "</td>";
-                body    += "<td>" + JSON.stringify(data.TrustedModules) + "</td>";
-                body    += "<td>" + JSON.stringify(data.Oem) + "</td>";
+                // body    += "<td>" + JSON.stringify(data.Boot) + "</td>";
+                // body    += "<td>" + JSON.stringify(data.TrustedModules) + "</td>";
+                // body    += "<td>" + JSON.stringify(data.Oem) + "</td>";
                 body    += "<td>" + data.BiosVersion + "</td>";
                 body    += "<td>" + JSON.stringify(data.ProcessorSummary.Model) + "<br>Status: " + JSON.stringify(data.ProcessorSummary.Status.HealthRollup) + "</td>";
                 body    += "<td>" + JSON.stringify(data.MemorySummary.TotalSystemMemoryGiB) + " GiB<br>Status: " + JSON.stringify(data.MemorySummary.Status.HealthRollup) + "</td>";
@@ -160,7 +160,7 @@ export default {
                   [
                     // {width: "10%", targets : [0, 1, 15] },
                     {width: "5.38%", targets : '_all' },
-                    { "targets": [ 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, ], "visible": false }
+                    { "targets": [ 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, ], "visible": false }
                     // {orderable : false, targets : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]} // 자동정렬하지 못하게(상단)
                   ],
                   
@@ -195,7 +195,7 @@ export default {
             // });
         },
         error: function() {
-            alert('Fail!');
+            alert('jquery를 이용한 테이블 불러오기에 실패했습니다.');
         }
     });
     });

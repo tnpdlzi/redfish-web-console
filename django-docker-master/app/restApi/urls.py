@@ -27,6 +27,9 @@ urlpatterns = [
     path('api/Charts', views.ChartUid_list),
     path('api/EditDashboard', views.edit_Dashboard),
     path('api/CardList', views.getCardData),
+    path('api/datasources', views.add_datasource),
+    path('api/notification', views.edit_notification),
+    path('api/localip', views.getLocalIp),
     # path('api/getThreshold', views.getThreshold),
     # path('api/sensorTemperatures', views.sensor_temps),
 ]

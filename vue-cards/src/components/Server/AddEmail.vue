@@ -1,20 +1,20 @@
 <template>
-  <div class="product">
-    <div class="form-group">
-    <h1>서버 삭제하기</h1>
-        IP Address: <input type="text" v-model="ip" placeholder="IP Address"/>
-        <br/>
-        <button @click="[deleteServer(), isModalViewed = true]">서버 삭제</button>     
+    <div class="edit-form">
+        
         <ModalView 
             v-if="isModalViewed" 
             @close-modal="[isModalViewed = false, result = '로딩중입니다.']"> 
             <Content 
                 :message="result"/> 
         </ModalView> 
+        알림 받을 이메일: <input type="email" v-model="email" placeholder="Email Address"/>
+        <br/>
+        
+<!-- 
+        <button @click="validationCheck()">{{ connection }}</button>
+        <br/> -->
+        <button @click="[addServer(), isModalViewed = true]">이메일 추가</button>
     </div>
-    
-
-  </div>
 </template>
 
 <script>
@@ -23,24 +23,25 @@ import Content from "./Content";
 import ModalView from "./ModalView";
 
 export default {
-    name : "DeleteServer",
+    name : "AddEmail",
+    props: {
+      id: Number
+    },
     components: { 
         Content, 
         ModalView, 
     },
     data() {
         return {
-            ip: '',
-            username: '',
-            password: '',
+            email: null,
             isModalViewed: false,
-            result: null
-            // connection: '서버 연결 확인'
+            result: null,
+            item: null,
         }
     },
     methods : {
-        deleteServer : function() {
-            axios.post('/api/deleteServer', { ip:this.ip }
+        addServer : function() {
+            axios.post('/api/notification', { email: this.email }
             ).then(response => {
                 console.warn(response)
                 this.result = response.data.message
@@ -49,24 +50,18 @@ export default {
                 console.warn("ERROR!!!!! : ",ex)
             })
         },
-    }
+
+    },
+    mounted() {
+        this.id = this.$route.params.id 
+    },
     
 }
 </script>
-
 <style>
-.form-group {
-  position: relative;
-  max-width: 35%;
-  margin: auto;
-  margin-top: 100px;
-  padding: 0px;
-  background-color: white;
-  min-height: 500px;
-  z-index: 10;
-  opacity: 1;
-  border-radius: 20px;
-  border: 2px;
-  border-color: black;
+.edit-form {
+  width: 100%;
+  height: 80px;
+  /* background-color: chartreuse; */
 }
 </style>

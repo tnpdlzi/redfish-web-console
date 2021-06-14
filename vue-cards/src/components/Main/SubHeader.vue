@@ -19,12 +19,16 @@
               {{tab}}
             </button>
           </router-link>
+          <div :key="tab" class="ipButton">
+          {{id}}
+          </div>
+
         </template>
         <template v-else>
           <router-link
           :key="tab"
           :to="`/dashboard/${ id }/${tab}`">
-            <button class="itemButton">
+            <button class="subButton">
               {{tab}}
             </button>
           </router-link>
@@ -94,5 +98,35 @@ export default {
   box-shadow: 3px 5px 5px 3px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   
   cursor: pointer;
+}
+
+.subButton {
+  height: 55px;
+  width: 55px;
+
+  margin: 10px;
+  background: var(--button-bg-color);
+    
+  margin: 5px;
+  /* padding: 0.5rem 1rem; */
+  
+  border: none;
+  border-radius: 10px;
+    
+  display: inline-block;
+  
+  box-shadow: 3px 5px 5px 3px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  
+  cursor: pointer;
+}
+
+.ipButton {
+  height: auto;
+  background: var(--button-bg-color);
+  /* margin: 10px; */
+  margin-top: 20px;
+  padding: 20px;    
+  width: auto;
+  font-size: 20px;
 }
 </style>

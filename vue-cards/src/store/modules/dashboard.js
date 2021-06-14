@@ -15,7 +15,7 @@ export default {
   actions: {
     fetchDashboard({commit}) {
 
-      return axios.get('http://localhost:8000/api/dashboard').then((res) => {   
+      return axios.get('/api/dashboard').then((res) => {   
           if (res.length == 0) {
             return; 
           }  

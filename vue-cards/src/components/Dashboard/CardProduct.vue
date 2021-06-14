@@ -173,7 +173,7 @@ export default {
 
   /* 글씨 색과 마진 변경 */
   .ttproduct-detail h2 {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
     color: #000;
     margin-bottom: 0px;

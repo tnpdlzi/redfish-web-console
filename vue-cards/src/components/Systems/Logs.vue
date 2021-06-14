@@ -78,7 +78,7 @@ import SubHeader from '@/components/Main/SubHeader'
   },
   
     created () {
-      axios.get('http://localhost:8000/api/logs?ip=' + this.$route.params.id)
+      axios.get('/api/logs?ip=' + this.$route.params.id)
       .then(response => {
         console.log(response);
         this.logStatus = response.data.logStatus;

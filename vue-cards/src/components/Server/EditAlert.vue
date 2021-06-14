@@ -1,16 +1,18 @@
 <template>
     <div class="edit-form">
-        온도 임계치: <input type="number" v-model="tempThreshold" placeholder="Temperature Threshold"/>
-        <br/>
-        파워 임계치: <input type="number" v-model="powerThreshold" placeholder="Power Threshold"/>
-        <br/>
-        
         <ModalView 
             v-if="isModalViewed" 
             @close-modal="[isModalViewed = false, result = '로딩중입니다.']"> 
             <Content 
                 :message="result"/> 
         </ModalView> 
+        
+        온도 임계치: <input type="number" v-model="tempThreshold" placeholder="Temperature Threshold"/>
+        <br/>
+        파워 임계치: <input type="number" v-model="powerThreshold" placeholder="Power Threshold"/>
+        <br/>
+        
+        
 <!-- 
         <button @click="validationCheck()">{{ connection }}</button>
         <br/> -->
@@ -43,7 +45,7 @@ export default {
     },
     methods : {
         addServer : function() {
-            axios.post('http://localhost:8000/api/EditDashboard', { tempThreshold:this.tempThreshold, powerThreshold:this.powerThreshold, ip:this.id }
+            axios.post('/api/EditDashboard', { tempThreshold:this.tempThreshold, powerThreshold:this.powerThreshold, ip:this.id }
             ).then(response => {
                 console.warn(response)
                 this.result = response.data.status

@@ -25,7 +25,7 @@ SECRET_KEY = 'vmm%@!*m7an^$*+6+m_ua94l1-)0ys59rvvthx_#vgqge0&4dm'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['app', '133.186.229.127', 'localhost']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -83,7 +83,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'redfish',
-        'USER': 'redfish',
+        'USER': 'root',
         'PASSWORD': 'redfish21',
         'HOST': 'localhost',
         'PORT': '3306',

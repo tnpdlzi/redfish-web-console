@@ -70,7 +70,7 @@ import SubHeader from '@/components/Main/SubHeader'
   },
     
     created () {
-      axios.get('http://localhost:8000/api/bios?ip=' + this.$route.params.id)
+      axios.get('/api/bios?ip=' + this.$route.params.id)
       .then(response => {
         console.log(response);
         this.item = response.data;

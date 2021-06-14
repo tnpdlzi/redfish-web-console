@@ -1,5 +1,5 @@
 import requests, redfish, json
-import copy
+import copy, os
 from django.db import connection
 
 from django.http.response import JsonResponse
@@ -52,6 +52,21 @@ def server_list(request):
             try:
                 server_data['grafanaId'] = add_Dashboard(ip, username, password, tempThreshold, powerThreshold).get('id')
                 server_data['grafanaUid'] = add_Dashboard(ip, username, password, tempThreshold, powerThreshold).get('uid')
+
+                with open('/etc/telegraf/telegraf.conf', 'r') as file:
+                    data = file.readlines()
+                LINE = 31
+                COLUMN = -2
+                with open('../../config/ip.txt', 'r') as file:
+                    localIp = file.readline().rstrip()
+                CHARACTER = '\"http://' + localIp + ':8000/api/telegraf?ip=' + ip + '\", ]'
+                d = list(data[LINE])
+                d[COLUMN] = CHARACTER
+                data[LINE] = "".join(d)
+                with open('/etc/telegraf/telegraf.conf', 'w') as file:
+                    file.writelines(data)
+                os.system("systemctl restart telegraf")
+
             except:
                 return JsonResponse({'message': 'ip, password, username이 잘못되었습니다.'})
         else:
@@ -88,9 +103,12 @@ def server_check(request):
             print(ip)
             try:
                 # validation check
-                REDFISH_OBJ = redfish.redfish_client(base_url='https://' + ip,
-                                                     username=username, \
-                                                     password=password, default_prefix='/redfish/v1')
+                try:
+                    REDFISH_OBJ = redfish.redfish_client(base_url='https://' + ip,
+                                                         username=username, \
+                                                         password=password, default_prefix='/redfish/v1')
+                except:
+                    return JsonResponse({'message': 'Redfish에 접속할 수 없습니다.'})
                 REDFISH_OBJ.login(auth="session")
 
                 res = getRedfishObjectData(REDFISH_OBJ, "/redfish/v1")
@@ -103,6 +121,74 @@ def server_check(request):
 
         return JsonResponse({'message': '잘못된 정보입니다.'})
 
+@api_view(['GET', 'POST', 'DELETE'])
+def add_datasource(request):
+    if request.method == 'GET':
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json;charset=UTF-8',
+            'Authorization': authorization
+        }
+
+        data = {
+            "name": "InfluxDB",
+            "type": "influxdb",
+            "url": "http://localhost:8086",
+            "access": "proxy",
+            "isDefault": True,
+            "database": "telegraf",
+            "user": "redfish",
+            "password": "redfish21"
+        }
+
+        url = 'http://admin:admin@localhost:3000/api/datasources'
+        r = requests.post(url=url, headers=headers, data=json.dumps(data), verify=False)
+
+        # notification channel
+        nData = {
+          "uid": "redfish-notification",
+          "name": "redfish-notification",
+          "type":  "email",
+          "isDefault": True,
+          "sendReminder": False,
+          "settings": {
+            "addresses": "dev@grafana.com",
+            "autoResolve": True,
+            "singleEmail": True,
+            "uploadImage": True
+          }
+        }
+
+        nUrl = 'http://admin:admin@localhost:3000/api/alert-notifications'
+        n = requests.post(url=nUrl, headers=headers, data=json.dumps(nData), verify=False)
+        print(n)
+
+        return JsonResponse({'message': 'datasource & notification channel 추가 완료!'})
+
+@api_view(['POST', 'PUT'])
+def edit_notification(request):
+    try:
+        server_data = JSONParser().parse(request)
+        email = server_data.get('email')
+
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json;charset=UTF-8',
+            'Authorization': authorization
+        }
+
+        data = requests.get('http://localhost:3000/api/alert-notifications/uid/redfish-notification', auth=('admin', 'admin')).json()
+
+        nData = copy.deepcopy(data)
+        nData['settings']['addresses'] += ';' + email
+
+        nUrl = 'http://admin:admin@localhost:3000/api/alert-notifications/uid/redfish-notification'
+        n = requests.put(url=nUrl, headers=headers, data=json.dumps(nData), verify=False)
+
+        return JsonResponse({'message': '{} 추가 완료!'.format(email)})
+
+    except:
+        return JsonResponse({'message': '에러 발생'})
 
 
 @api_view(['GET', 'POST', 'DELETE'])
@@ -126,18 +212,18 @@ def getRedfishObjectData(REDFISH_OBJ, url):
 def dashboard_list(request):
 
     dashboardList = []
+    servers = []
 
     try:
         cursor = connection.cursor()
 
-        strSql = "SELECT ip, username, password FROM restapi_servers"
+        strSql = "SELECT ip, username, password FROM restApi_servers"
         result = cursor.execute(strSql)
         datas = cursor.fetchall()
 
         connection.commit()
         connection.close()
 
-        servers = []
         for data in datas:
             row = {'ip': data[0],
                    'username': data[1],
@@ -147,6 +233,8 @@ def dashboard_list(request):
     except:
         connection.rollback()
         print("Failed selecting")
+        return JsonResponse(dashboardList, safe=False)
+
     for server in servers:
 
         try:
@@ -163,7 +251,7 @@ def dashboard_list(request):
         for idUrl in idUrlList:
             idUrls.append(idUrl.get('@odata.id'))
 
-        columnList = ['ip', 'Id', 'Name', 'SystemType', 'AssetTag', 'Manufacturer', 'Model', 'SKU', 'SerialNumber', 'PartNumber', 'Description', 'UUID', 'HostName', 'Status', 'IndicatorLED', 'PowerState', 'Boot', 'TrustedModules', 'BiosVersion', 'ProcessorSummary', 'MemorySummary', 'Links', 'Actions']
+        columnList = ['ip', 'Id', 'Name', 'SystemType', 'AssetTag', 'Manufacturer', 'Model', 'SKU', 'SerialNumber', 'PartNumber', 'Description', 'UUID', 'HostName', 'Status', 'IndicatorLED', 'PowerState', 'BiosVersion', 'ProcessorSummary', 'MemorySummary']
 
         for idUrl in idUrls:
             systems = {}
@@ -174,12 +262,13 @@ def dashboard_list(request):
                 systems[c] = urls.get(c)
             systems['ip'] = server.get("ip")
 
+            print(systems)
+
             dashboardList.append(systems)
 
         REDFISH_OBJ.logout()
 
     return JsonResponse(dashboardList, safe=False)
-
 
 @api_view(['GET'])
 def instance_list(request):
@@ -219,6 +308,7 @@ def instance_list(request):
 @api_view(['GET'])
 def processor_list(request):
     ip = request.GET.get('ip')
+    print(ip)
     instance = Servers.objects.get(ip=ip)
     REDFISH_OBJ = redfish.redfish_client(base_url='https://' + ip, username=instance.username, \
                                          password=instance.password, default_prefix='/redfish/v1')
@@ -464,7 +554,6 @@ def log_list(request):
 
     REDFISH_OBJ.logout()
 
-
 @api_view(['GET'])
 def memory_list(request):
     ip = request.GET.get('ip')
@@ -690,7 +779,6 @@ def message_list(request):
     result = []
     return JsonResponse(result, safe=False)
 
-
 @api_view(['GET'])
 def details(request):
     ip = request.GET.get('ip')
@@ -832,232 +920,6 @@ def chassis_list(request):
     return JsonResponse(chassisList, safe=False)
 
 @api_view(['GET'])
-def ThermalSubsystem_list(request):
-    ip = request.GET.get('ip')
-    instance = Servers.objects.get(ip=ip)
-    REDFISH_OBJ = redfish.redfish_client(base_url='https://' + ip, username=instance.username, \
-                                         password=instance.password, default_prefix='/redfish/v1')
-    REDFISH_OBJ.login(auth="session")
-
-    res = getRedfishObjectData(REDFISH_OBJ, "/redfish/v1/Chassis/")
-
-    result = []
-
-    idUrlList = res.get("Members")
-
-    #Systems 내의 Members를 통해 서버 이름 받기
-    idUrls = []
-    for idUrl in idUrlList:
-        # 바로 ThermalSubsystem로 저장
-        idUrls.append(idUrl.get('@odata.id') + '/ThermalSubsystem')
-    print('idUrls' + str(idUrls))
-
-    #ThermalSubsystem로부터 데이터 받기
-    fansUrls = []
-    for idUrl in idUrls:
-        res = getRedfishObjectData(REDFISH_OBJ, idUrl)
-
-        fansUrl = res.get("Fans")
-        print('fansUrl' + str(fansUrl))
-        #fansUrl로부터 각각의 url받기
-
-        fansUrls.append(fansUrl.get('@odata.id'))
-
-    print('fansUrls' + str(fansUrls))
-
-    # ThermalSubsystem로부터 데이터 받기
-    ThermalMetricsUrls = []
-    for idUrl in idUrls:
-        res = getRedfishObjectData(REDFISH_OBJ, idUrl)
-
-        ThermalMetricsUrl = res.get("ThermalMetrics")
-
-        # fansUrl로부터 각각의 url받기
-        ThermalMetricsUrls.append(ThermalMetricsUrl.get('@odata.id'))
-
-
-    ## ThermalSubsystem
-
-    # 이제 여기서부터 end point로부터 데이터 받기
-
-    columnList = ['Name', 'FanRedundancy', 'Status', 'Fans', 'ThermalMetrics']
-
-    ThermalSubsystemList = []
-    for url in idUrls:
-        datas = {}
-        urls = getRedfishObjectData(REDFISH_OBJ, url)
-
-        for c in columnList:
-            datas[c] = urls.get(c)
-        ThermalSubsystemList.append(datas)
-    result.append(ThermalSubsystemList)
-
-
-    #Fans 데이터 받기
-    fanIds = []
-    fanResults = []
-    for fanUrl in fansUrls:
-        res = getRedfishObjectData(REDFISH_OBJ, fanUrl)
-
-        fanIdUrls = res.get("Members")
-
-        #vlan Url로부터 각각의 vlan/:id 받기
-        for url in fanIdUrls:
-            fanIds.append(url.get('@odata.id'))
-
-        # 이제 여기서부터 end point로부터 데이터 받기
-        fanColumnList = ['Id', 'Name', 'Status', 'PhysicalContext', 'Model', 'Manufacturer', 'PartNumber', 'SparePartNumber', 'LocationIndicatorActive', 'HotPluggable', 'SpeedPercent', 'Location']
-
-        for fan in fanIds:
-            datas = {}
-            urls = getRedfishObjectData(REDFISH_OBJ, fan)
-
-            print('urls' + str(urls))
-
-            for c in fanColumnList:
-                datas[c] = urls.get(c)
-            fanResults.append(datas)
-
-        print('vlanResults' + str(fanResults))
-
-    result.append(fanResults)
-
-    ## ThermalMetrics
-    ThermalMetricsList = []
-
-    thermalMetricsColumnList = ['Id', 'Name', 'TemperatureSummaryCelsius', 'TemperatureReadingsCelsius']
-
-    for url in ThermalMetricsUrls:
-        datas = {}
-
-        urls = getRedfishObjectData(REDFISH_OBJ, url)
-
-        for c in thermalMetricsColumnList:
-            datas[c] = urls.get(c)
-        ThermalMetricsList.append(datas)
-
-    result.append(ThermalMetricsList)
-    REDFISH_OBJ.logout()
-    return JsonResponse(result, safe=False)
-
-
-@api_view(['GET'])
-def PowerSubsystem_list(request):
-    ip = request.GET.get('ip')
-    instance = Servers.objects.get(ip=ip)
-    REDFISH_OBJ = redfish.redfish_client(base_url='https://' + ip, username=instance.username, \
-                                         password=instance.password, default_prefix='/redfish/v1')
-    REDFISH_OBJ.login(auth="session")
-
-    res = getRedfishObjectData(REDFISH_OBJ, "/redfish/v1/Chassis/")
-    result = []
-
-    idUrlList = res.get("Members")
-
-    #Chassis 내의 Members를 통해 서버 이름 받기
-    idUrls = []
-    for idUrl in idUrlList:
-        # 바로 PowerSubsystem로 저장
-        idUrls.append(idUrl.get('@odata.id') + '/PowerSubsystem')
-    print('idUrls' + str(idUrls))
-
-    #PowerSubsystem로부터 데이터 받기
-    powerSuppliesUrls = []
-    for idUrl in idUrls:
-        res = getRedfishObjectData(REDFISH_OBJ, idUrl)
-
-        powerSuppliesUrl = res.get("PowerSupplies")
-        print('fansUrl' + str(powerSuppliesUrl))
-        #PowerSuppliesUrl로부터 각각의 url받기
-
-        powerSuppliesUrls.append(powerSuppliesUrl.get('@odata.id'))
-
-    print('fansUrls' + str(powerSuppliesUrls))
-
-
-    ## ThermalSubsystem
-
-    # 이제 여기서부터 end point로부터 데이터 받기
-
-    columnList = ['Name', 'CapacityWatts', 'Allocation', 'PowerSupplyRedundancy', 'PowerSupplies', 'Status']
-
-    powerSubsystemList = []
-    for url in idUrls:
-        datas = {}
-
-        urls = getRedfishObjectData(REDFISH_OBJ, url)
-
-        for c in columnList:
-            datas[c] = urls.get(c)
-        powerSubsystemList.append(datas)
-    result.append(powerSubsystemList)
-
-
-    #Fans 데이터 받기
-    powerSuppliesIds = []
-    powerSuppliesResults = []
-    for powerSuppliesUrl in powerSuppliesUrls:
-        res = getRedfishObjectData(REDFISH_OBJ, powerSuppliesUrl)
-
-        powerSuppliesIdUrls = res.get("Members")
-
-        #vlan Url로부터 각각의 vlan/:id 받기
-        for url in powerSuppliesIdUrls:
-            powerSuppliesIds.append(url.get('@odata.id'))
-
-        # 이제 여기서부터 end point로부터 데이터 받기
-        powerSuppliesColumnList = ['Id', 'Name', 'Status', 'Model', 'Manufacturer', 'FirmwareVersion', 'SerialNumber', 'PartNumber', 'SparePartNumber', 'LocationIndicatorActive', 'HotPluggable', 'PowerCapacityWatts', 'PhaseWiringType', 'PlugType', 'InputRanges', 'EfficiencyRatings', 'OutputRails', 'Location', 'Links', 'Assembly', 'Metrics']
-
-        for powerSupplies in powerSuppliesIds:
-            datas = {}
-            urls = getRedfishObjectData(REDFISH_OBJ, powerSupplies)
-
-            print('urls' + str(urls))
-
-            for c in powerSuppliesColumnList:
-                datas[c] = urls.get(c)
-            powerSuppliesResults.append(datas)
-
-    result.append(powerSuppliesResults)
-
-    REDFISH_OBJ.logout()
-    return JsonResponse(result, safe=False)
-
-
-@api_view(['GET'])
-def EnvironmentMetrics_list(request):
-    ip = request.GET.get('ip')
-    instance = Servers.objects.get(ip=ip)
-    REDFISH_OBJ = redfish.redfish_client(base_url='https://' + ip, username=instance.username, \
-                                         password=instance.password, default_prefix='/redfish/v1')
-    REDFISH_OBJ.login(auth="session")
-
-    res = getRedfishObjectData(REDFISH_OBJ, "/redfish/v1/Chassis/")
-    idUrlList = res.get("Members")
-
-    #Chassis 내의 Members를 통해 서버 이름 받기
-    idUrls = []
-    for idUrl in idUrlList:
-        # 바로 EnvironmentMetrics로 저장
-        idUrls.append(idUrl.get('@odata.id') + '/EnvironmentMetrics')
-    print('idUrls' + str(idUrls))
-
-
-    columnList = ['Name', 'TemperatureCelsius', 'PowerWatts', 'FanSpeedsPercent']
-
-    environmentMetricsList = []
-    for url in idUrls:
-        datas = {}
-        urls = getRedfishObjectData(REDFISH_OBJ, url)
-
-        for c in columnList:
-            datas[c] = urls.get(c)
-        environmentMetricsList.append(datas)
-
-    REDFISH_OBJ.logout()
-    return JsonResponse(environmentMetricsList, safe=False)
-
-@api_view(['GET'])
 def Sensors_list(request):
     ip = request.GET.get('ip')
     instance = Servers.objects.get(ip=ip)
@@ -1106,7 +968,6 @@ def Sensors_list(request):
     REDFISH_OBJ.logout()
     return JsonResponse(sensorsList, safe=False)
 
-
 @api_view(['GET'])
 def Thermal_list(request):
     ip = request.GET.get('ip')
@@ -1152,7 +1013,6 @@ def Thermal_list(request):
 
     REDFISH_OBJ.logout()
     return JsonResponse(result, safe=False)
-
 
 @api_view(['GET'])
 def Power_list(request):
@@ -1214,6 +1074,13 @@ def ChartUid_list(request):
     return JsonResponse(servers_serializer.data, safe=False)
 
 @api_view(['GET'])
+def getLocalIp(request):
+    with open('../../config/ip.txt', 'r') as file:
+        data = file.readline()
+
+    return JsonResponse({'ip': data}, safe=False)
+
+@api_view(['GET'])
 def telegraf(request):
     ip = request.GET.get('ip')
     instance = Servers.objects.get(ip=ip)
@@ -1254,8 +1121,6 @@ def telegraf(request):
 
     REDFISH_OBJ.logout()
     return JsonResponse(result, safe=False)
-
-
 
 def add_Dashboard(rawIp, username, password, tempThreshold, powerThreshold):
 
@@ -1418,7 +1283,7 @@ def add_Dashboard(rawIp, username, password, tempThreshold, powerThreshold):
                         "noDataState": "no_data",
                         "notifications": [
                             {
-                                "uid": "9EoyWvqGz"
+                                "uid": "redfish-notification"
                             }
                         ]
                     },
@@ -1524,7 +1389,7 @@ def add_Dashboard(rawIp, username, password, tempThreshold, powerThreshold):
                         "noDataState": "no_data",
                         "notifications": [
                             {
-                                "uid": "9EoyWvqGz"
+                                "uid": "redfish-notification"
                             }
                         ],
                         "message": "파워가 기준치를 초과했습니다."
@@ -1680,7 +1545,6 @@ def add_Dashboard(rawIp, username, password, tempThreshold, powerThreshold):
     r = requests.post(url=url, headers=headers, data=json.dumps(dashboard_data), verify=False)
 
     return r.json()
-
 
 @api_view(['GET', 'POST'])
 def edit_Dashboard(request):
@@ -1858,7 +1722,7 @@ def edit_Dashboard(request):
                         "noDataState": "no_data",
                         "notifications": [
                             {
-                                "uid": "9EoyWvqGz"
+                                "uid": "redfish-notification"
                             }
                         ]
                     },
@@ -1964,7 +1828,7 @@ def edit_Dashboard(request):
                         "noDataState": "no_data",
                         "notifications": [
                             {
-                                "uid": "9EoyWvqGz"
+                                "uid": "redfish-notification"
                             }
                         ],
                         "message": "파워가 기준치를 초과했습니다."
@@ -2121,22 +1985,22 @@ def edit_Dashboard(request):
 
     return JsonResponse(r.json())
 
-
 @api_view(['GET'])
 def getCardData(request):
     cardList = []
+    serverIPs = []
 
     try:
         cursor = connection.cursor()
 
-        strSql = "SELECT ip FROM restapi_servers"
+        strSql = "SELECT ip FROM restApi_servers"
         result = cursor.execute(strSql)
         datas = cursor.fetchall()
+        print(datas)
 
         connection.commit()
         connection.close()
 
-        serverIPs = []
         for data in datas:
             row = data[0]
             serverIPs.append(row)
@@ -2168,7 +2032,6 @@ def getCardData(request):
         part = None
 
         try:
-            instance = Servers.objects.get(ip=ip)
             resultData.append({"ip": ip, "tempThreshold": instance.tempThreshold, "powerThreshold": instance.powerThreshold})
         except:
             resultData.append({"ip": ip, "tempThreshold": None, "powerThreshold": None})
@@ -2176,8 +2039,8 @@ def getCardData(request):
         for data in temperaturesData:
             if data.get("PhysicalContext") == "CPU":
                 resultData.append({"Name": data.get("Name"), "ReadingCelsius": data.get("ReadingCelsius")})
-                if instance.tempThreshold == None:
-                    pass
+                if data.get("ReadingCelsius") == None or instance.tempThreshold == None:
+                    continue
                 elif color != "Red" and data.get("ReadingCelsius") >= instance.tempThreshold:
                     color = "Red"
                     part = "Temp"
@@ -2194,8 +2057,8 @@ def getCardData(request):
 
         for data in powerData:
             resultData.append({"Name": "PowerControl", "PowerConsumedWatts": data.get("PowerConsumedWatts")})
-            if instance.powerThreshold == None:
-                pass
+            if data.get("PowerConsumedWatts") != None or instance.powerThreshold == None:
+                continue
             elif color != "Red" and data.get("PowerConsumedWatts") >= instance.powerThreshold:
                 color = "Red"
                 part = "Power"

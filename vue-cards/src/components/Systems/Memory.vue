@@ -44,7 +44,7 @@ import axios from 'axios';
 
     
     created () {
-      axios.get('http://localhost:8000/api/memory?ip=' + this.$route.params.id)
+      axios.get('/api/memory?ip=' + this.$route.params.id)
       .then(response => {
         console.log(response);
         this.item = response.data;

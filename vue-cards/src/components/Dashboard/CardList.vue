@@ -69,7 +69,7 @@ export default {
   },
   
   created () {
-      axios.get('http://localhost:8000/api/CardList')
+      axios.get('/api/CardList')
       .then(response => {
         console.log(response);
         this.data = response.data;

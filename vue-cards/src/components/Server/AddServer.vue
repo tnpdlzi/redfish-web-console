@@ -47,7 +47,7 @@ export default {
     },
     methods : {
         addServer : function() {
-            axios.post('http://localhost:8000/api/server', { ip:this.ip, username:this.username, password:this.password }
+            axios.post('/api/server', { ip:this.ip, username:this.username, password:this.password }
             ).then(response => {
                 console.warn(response)
                 this.result = response.data.message
@@ -57,7 +57,7 @@ export default {
             })
         },
         validationCheck : function() {
-            axios.post('http://localhost:8000/api/check', { ip:this.ip, username:this.username, password:this.password }
+            axios.post('/api/check', { ip:this.ip, username:this.username, password:this.password }
             ).then(response => {
                 console.warn(response)
                 this.result = response.data.message
